@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#4f46e5">
+  <title>StudyFlow - Mobile Syllabus & Progress Tracker</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Supabase Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Mobile Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="h-full text-slate-800 dark:text-slate-100 flex justify-center">
+
+  <!-- MOBILE APP FRAME CONTAINER -->
+  <div class="mobile-app-wrapper border-x border-slate-200/80 dark:border-slate-800/80 transition-colors">
+    
+    <!-- STICKY TOP APP HEADER -->
+    <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-3.5 py-2.5 flex items-center justify-between">
+      
+      <!-- Brand Logo & Subject Pill -->
+      <div class="flex items-center space-x-2 min-w-0 flex-1">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shrink-0 shadow-sm shadow-indigo-500/40">
+          <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+        </div>
+
+        <!-- Subject Switcher Dropdown -->
+        <div class="relative flex-1 min-w-0">
+          <select id="subject-selector" class="w-full bg-slate-100 dark:bg-slate-800 text-xs font-bold pl-2.5 pr-6 py-1.5 rounded-xl border border-transparent focus:border-indigo-500 focus:outline-none truncate text-slate-800 dark:text-slate-200 cursor-pointer">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center space-x-1.5 ml-2 shrink-0">
+        <!-- Quick Add FAB Button -->
+        <button id="btn-open-quick-actions" class="w-8 h-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md shadow-indigo-600/30 touch-press transition" title="Add Topic or Course">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Cloud Status Dot / Profile Quick link -->
+        <button id="header-avatar-btn" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 relative touch-press" title="Account & Settings">
+          <i data-lucide="user" class="w-4 h-4"></i>
+          <span id="header-status-dot" class="w-2 h-2 rounded-full bg-amber-400 absolute top-1 right-1 ring-2 ring-white dark:ring-slate-900"></span>
+        </button>
+      </div>
+
+    </header>
+
+    <!-- GAMIFIED XP & STREAK SUB-HEADER -->
+    <div class="bg-slate-100/90 dark:bg-slate-950/80 border-b border-slate-200/80 dark:border-slate-800/80 px-3.5 py-1.5 flex items-center justify-between text-[11px] font-bold">
+      <!-- Level & XP -->
+      <div class="flex items-center space-x-2 flex-1 min-w-0 mr-3">
+        <span id="gamify-level-badge" class="px-1.5 py-0.5 rounded-md bg-indigo-600 text-white text-[10px] font-black shrink-0">Lv.1</span>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">
+            <span id="gamify-level-title" class="truncate font-semibold">Novice Scholar</span>
+            <span id="gamify-xp-text" class="font-mono">0 / 200 XP</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div id="gamify-xp-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full xp-bar" style="width: 15%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Streak Counter -->
+      <div class="flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-amber-100/80 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 shrink-0">
+        <span class="flame-pulse">🔥</span>
+        <span id="gamify-streak-count" class="font-black text-xs">1</span>
+        <span class="text-[10px] font-semibold">day</span>
+      </div>
+    </div>
+
+    <!-- CLOUD SYNC NOTICE BANNER -->
+    <div id="cloud-sync-banner" class="bg-indigo-600 text-white px-3 py-1.5 text-[11px] font-semibold flex items-center justify-between hidden">
+      <div class="flex items-center space-x-1.5 truncate">
+        <i data-lucide="cloud-check" class="w-3.5 h-3.5 shrink-0"></i>
+        <span id="cloud-sync-text" class="truncate">Cloud sync active</span>
+      </div>
+      <button id="btn-manual-sync" class="text-[10px] bg-white/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 ml-2 touch-press">Sync</button>
+    </div>
+
+    <!-- MAIN SCROLLABLE APP BODY -->
+    <main class="flex-1 overflow-y-auto px-4 py-3.5 space-y-3.5 pb-24">
+
+      <!-- ==================== TAB 1: SYLLABUS ==================== -->
+      <section id="screen-syllabus" class="app-screen space-y-3.5">
+        
+        <!-- Motivational Tip / Study Hack Pill -->
+        <div id="study-tip-pill" class="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-2.5 flex items-start space-x-2.5 cursor-pointer touch-press" title="Tap for another study hack">
+          <span class="text-base leading-none">💡</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+              <span>Study Hack of the Day</span>
+              <span class="text-[9px] text-slate-400 font-normal">Tap to shuffle</span>
+            </div>
+            <p id="study-tip-text" class="text-xs text-slate-700 dark:text-slate-300 mt-0.5 leading-snug">
+              Feynman Technique: Test your mastery by explaining complex concepts in simple terms without jargon.
+            </p>
+          </div>
+        </div>
+
+        <!-- Subject Hero Card with Enhanced Exam Awareness -->
+        <div id="subject-banner" class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white p-4 shadow-lg shadow-indigo-700/15">
+          
+          <!-- Top Row: Code & Exam Countdown -->
+          <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <span id="subject-code-badge" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-white/20 uppercase tracking-wider">CS201</span>
+            
+            <!-- Exam Countdown & Quick Edit Trigger -->
+            <button id="btn-hero-exam-pill" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-400 text-slate-950 shadow-sm touch-press">
+              <i data-lucide="alarm-clock" class="w-3.5 h-3.5"></i>
+              <span id="exam-countdown-text">14 days left</span>
+              <i data-lucide="edit-3" class="w-3 h-3 text-slate-800 ml-0.5"></i>
+            </button>
+          </div>
+
+          <h2 id="subject-title" class="text-lg font-black tracking-tight leading-tight">Data Structures & Algorithms</h2>
+          <p id="subject-desc" class="text-indigo-100/90 text-xs mt-1 line-clamp-2">Syllabus modules, concepts, and revision tracking.</p>
+
+          <!-- Urgent Exam Warning Banner (Shown when exam is in <= 7 days) -->
+          <div id="exam-urgency-banner" class="mt-2.5 p-2 rounded-xl bg-rose-500/90 text-white text-[11px] font-bold flex items-center space-x-1.5 hidden urgent-alert">
+            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 text-amber-300"></i>
+            <span id="exam-urgency-text">Exam approaching fast! Prioritize high-weight topics.</span>
+          </div>
+
+          <!-- Overall Progress Mini Bar -->
+          <div class="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
+            <div class="flex items-center space-x-1.5">
+              <span class="text-xs text-indigo-200">Progress:</span>
+              <span id="stat-completion-pct" class="text-xs font-black text-white">0%</span>
+              <span id="stat-topics-fraction" class="text-[10px] text-indigo-200/80">(0/0 topics)</span>
+            </div>
+            <div class="w-24 h-2 bg-white/20 rounded-full overflow-hidden">
+              <div id="stat-progress-bar" class="h-full bg-emerald-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Bar & Filters -->
+        <div class="space-y-2">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="search-input" placeholder="Search topics, formulas, concepts..." 
+                   class="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs focus:border-indigo-500 focus:outline-none shadow-xs text-slate-800 dark:text-slate-200">
+          </div>
+
+          <!-- Horizontally Scrollable Status Filter Chips -->
+          <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5 text-[11px] font-semibold">
+            <button data-filter-status="all" class="filter-status-btn px-3 py-1.5 rounded-xl bg-indigo-600 text-white shrink-0 shadow-xs transition">All</button>
+            <button data-filter-status="in-progress" class="filter-status-btn px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0 transition">In Progress</button>
+            <button data-filter-status="needs-revision" class="filter-status-btn px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0 transition">Needs Rev.</button>
+            <button data-filter-status="completed" class="filter-status-btn px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0 transition">Done</button>
+            <button data-filter-status="not-started" class="filter-status-btn px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shrink-0 transition">Pending</button>
+          </div>
+        </div>
+
+        <!-- Modules & Topics Container -->
+        <div id="modules-container" class="space-y-3">
+          <!-- Dynamically populated module cards -->
+        </div>
+
+        <!-- Empty State (When no modules or no search match) -->
+        <div id="empty-state" class="hidden text-center py-10 px-4">
+          <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 mx-auto flex items-center justify-center mb-2.5">
+            <i data-lucide="book-open" class="w-6 h-6"></i>
+          </div>
+          <p id="empty-state-title" class="text-sm font-bold text-slate-800 dark:text-slate-200">No syllabus units found</p>
+          <p id="empty-state-subtitle" class="text-xs text-slate-400 mt-0.5">Tap the "+" button to add your first module or import your syllabus.</p>
+          <button id="btn-reset-filters" class="mt-3 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold">Reset Filters</button>
+        </div>
+
+      </section>
+
+      <!-- ==================== TAB 2: FOCUS POMODORO ==================== -->
+      <section id="screen-timer" class="app-screen hidden space-y-4 py-1">
+        
+        <div class="text-center">
+          <span class="text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Deep Focus</span>
+          <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 mt-0.5">Study Pomodoro</h2>
+          <p id="pomodoro-active-topic" class="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate max-w-xs mx-auto">Session: General Syllabus Revision</p>
+        </div>
+
+        <!-- Timer Mode Selector -->
+        <div class="flex items-center justify-center space-x-1 bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+          <button id="pomo-mode-focus" class="flex-1 py-1.5 rounded-xl bg-indigo-600 text-white shadow-xs">Focus (25m)</button>
+          <button id="pomo-mode-short" class="flex-1 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Short (5m)</button>
+          <button id="pomo-mode-long" class="flex-1 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Long (15m)</button>
+        </div>
+
+        <!-- Big Circular Countdown Display -->
+        <div class="relative w-52 h-52 mx-auto flex items-center justify-center my-2">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44" stroke="currentColor" stroke-width="7" class="text-slate-200 dark:text-slate-800" fill="transparent" />
+            <circle id="timer-progress-ring" cx="50" cy="50" r="44" stroke="currentColor" stroke-width="7" stroke-dasharray="276.46" stroke-dashoffset="0" stroke-linecap="round" class="text-indigo-600 dark:text-indigo-400 timer-ring-circle" fill="transparent" />
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <div id="pomodoro-timer" class="font-mono text-4xl font-black text-slate-900 dark:text-white tracking-tight">25:00</div>
+            <span class="text-[10px] font-semibold text-slate-400 uppercase mt-0.5">+100 XP upon completion</span>
+          </div>
+        </div>
+
+        <!-- Timer Controls -->
+        <div class="flex items-center justify-center space-x-3 pt-1">
+          <button id="btn-pomo-reset" class="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-sm touch-press" title="Reset Timer">
+            <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+          </button>
+          <button id="btn-pomo-toggle" class="flex-1 max-w-[200px] h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 touch-press">
+            <i data-lucide="play" id="pomo-play-icon" class="w-5 h-5"></i>
+            <span id="pomo-play-text">Start Focus</span>
+          </button>
+        </div>
+
+        <!-- Target Topic Linker -->
+        <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+            <span>Link Timer to Topic</span>
+            <span class="text-[10px] text-indigo-500 font-semibold">Auto-logs study time</span>
+          </div>
+          <select id="timer-topic-select" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2 text-xs font-semibold focus:outline-none cursor-pointer">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+
+      </section>
+
+      <!-- ==================== TAB 3: ANALYTICS & STATS ==================== -->
+      <section id="screen-analytics" class="app-screen hidden space-y-3.5 py-1">
+        
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Progress Insights</span>
+          <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 mt-0.5">Syllabus Analytics</h2>
+        </div>
+
+        <!-- Exam Alert Card -->
+        <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 p-3.5 rounded-2xl shadow-sm flex items-center justify-between">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-10 h-10 rounded-xl bg-white/25 flex items-center justify-center shrink-0">
+              <i data-lucide="calendar" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-900/80">Exam Target</span>
+              <p id="analytics-exam-date" class="text-xs font-black">Not Scheduled</p>
+            </div>
+          </div>
+          <button id="btn-analytics-edit-exam" class="px-3 py-1.5 rounded-xl bg-slate-950 text-white text-xs font-bold touch-press">
+            Set Date
+          </button>
+        </div>
+
+        <!-- Metric Grid -->
+        <div class="grid grid-cols-2 gap-2.5">
+          
+          <!-- Card 1: Modules Completed -->
+          <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <div class="flex items-center justify-between text-slate-400 mb-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider">Modules</span>
+              <i data-lucide="layers" class="w-4 h-4 text-emerald-500"></i>
+            </div>
+            <div class="flex items-baseline space-x-1">
+              <span id="stat-modules-completed" class="text-2xl font-black text-emerald-600 dark:text-emerald-400">0</span>
+              <span id="stat-modules-total" class="text-xs text-slate-400 font-bold">/ 0 units</span>
+            </div>
+            <p id="stat-in-progress-text" class="text-[10px] text-slate-400 mt-1">0 modules active</p>
+          </div>
+
+          <!-- Card 2: Study Time -->
+          <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <div class="flex items-center justify-between text-slate-400 mb-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider">Study Time</span>
+              <i data-lucide="clock" class="w-4 h-4 text-rose-500"></i>
+            </div>
+            <div class="flex items-baseline space-x-1">
+              <span id="stat-study-time" class="text-2xl font-black text-rose-500">0h</span>
+              <span class="text-xs text-slate-400 font-bold">logged</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1">Via Pomodoro timer</p>
+          </div>
+
+        </div>
+
+        <!-- Spaced Repetition Breakdown Card -->
+        <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Spaced Repetitions Cleared</span>
+            <span id="stat-revision-count" class="text-xs font-black text-amber-500">0 total</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+              <span class="text-[9px] font-bold text-slate-400 uppercase">1st Review</span>
+              <div id="badge-rev-1" class="text-base font-black text-indigo-600 dark:text-indigo-400 mt-0.5">0</div>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+              <span class="text-[9px] font-bold text-slate-400 uppercase">2nd Review</span>
+              <div id="badge-rev-2" class="text-base font-black text-indigo-600 dark:text-indigo-400 mt-0.5">0</div>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+              <span class="text-[9px] font-bold text-slate-400 uppercase">3rd Review</span>
+              <div id="badge-rev-3" class="text-base font-black text-indigo-600 dark:text-indigo-400 mt-0.5">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Average Confidence Card -->
+        <div class="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Average Confidence</span>
+            <p class="text-[11px] text-slate-400 mt-0.5">Self-rated syllabus mastery</p>
+          </div>
+          <div class="flex items-center space-x-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-3 py-1.5 rounded-xl">
+            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+            <span id="stat-avg-confidence" class="text-sm font-black text-amber-600 dark:text-amber-300">0 / 5</span>
+          </div>
+        </div>
+
+        <!-- Action: Print Revision Checklist -->
+        <button id="btn-print" class="w-full py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-xs flex items-center justify-center space-x-2 touch-press">
+          <i data-lucide="printer" class="w-4 h-4 text-indigo-500"></i>
+          <span>Print / Save Study Sheet PDF</span>
+        </button>
+
+      </section>
+
+      <!-- ==================== TAB 4: PROFILE & CLOUD ==================== -->
+      <section id="screen-profile" class="app-screen hidden space-y-3.5 py-1">
+        
+        <div>
+          <span class="text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Settings & Sync</span>
+          <h2 class="text-xl font-black text-slate-800 dark:text-slate-100 mt-0.5">Student Account</h2>
+        </div>
+
+        <!-- Student Account Card -->
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center font-black text-lg shadow-sm">
+              <span id="profile-avatar-char">S</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 id="profile-name" class="font-extrabold text-sm text-slate-800 dark:text-slate-100 truncate">Guest Student</h3>
+              <p id="profile-email" class="text-xs text-slate-400 truncate">Local / Offline Storage</p>
+            </div>
+            <span id="profile-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">Guest</span>
+          </div>
+
+          <!-- Log In / Sign Up Trigger -->
+          <div id="profile-auth-actions" class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center space-x-2">
+            <button id="btn-open-login" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold touch-press shadow-sm">
+              Sign In or Register
+            </button>
+          </div>
+
+          <!-- Logged In Controls -->
+          <div id="profile-logged-in-controls" class="pt-2 border-t border-slate-100 dark:border-slate-800 hidden flex items-center space-x-2">
+            <button id="btn-profile-sync" class="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold touch-press">
+              Sync Data Now
+            </button>
+            <button id="btn-signout" class="px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-500 text-xs font-bold touch-press">
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <!-- Cloud Database Config Toggle -->
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="database" class="w-4 h-4 text-indigo-500"></i>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Supabase Cloud Database</span>
+            </div>
+            <button id="btn-toggle-cloud-settings" class="text-xs font-bold text-indigo-600 dark:text-indigo-400">Configure</button>
+          </div>
+
+          <!-- Collapsible Cloud Config Fields -->
+          <div id="cloud-config-fields" class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 hidden">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Project URL</label>
+              <input type="url" id="input-supabase-url" placeholder="https://xyz.supabase.co" 
+                     class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Anon Public Key</label>
+              <input type="text" id="input-supabase-key" placeholder="eyJhbGci..." 
+                     class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono">
+            </div>
+            <div class="flex items-center space-x-2 pt-1">
+              <button id="btn-save-cloud-config" class="flex-1 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">Save Credentials</button>
+              <button id="btn-copy-sql-schema" class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold">Copy SQL</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Backup & Reset Section (With Reset to Empty Syllabus) -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+          
+          <!-- Dark Mode Toggle -->
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+              <i data-lucide="moon" class="w-4 h-4 text-slate-400"></i>
+              <span class="font-bold text-slate-800 dark:text-slate-200">Dark Mode</span>
+            </div>
+            <button id="theme-toggle" class="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <i data-lucide="sun" class="w-4 h-4 inline dark:hidden"></i>
+              <i data-lucide="moon" class="w-4 h-4 hidden dark:inline"></i>
+            </button>
+          </div>
+
+          <!-- Export JSON Backup -->
+          <button id="btn-export-json" class="w-full p-3.5 flex items-center justify-between text-left touch-press">
+            <div class="flex items-center space-x-2.5">
+              <i data-lucide="download" class="w-4 h-4 text-slate-400"></i>
+              <span class="font-bold text-slate-800 dark:text-slate-200">Download Data Backup (.json)</span>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+          </button>
+
+          <!-- Restore JSON Backup -->
+          <label class="p-3.5 flex items-center justify-between cursor-pointer">
+            <div class="flex items-center space-x-2.5">
+              <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
+              <span class="font-bold text-slate-800 dark:text-slate-200">Restore Backup File</span>
+            </div>
+            <input type="file" id="input-import-file" accept=".json" class="hidden">
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+          </label>
+
+          <!-- RESET TO EMPTY SYLLABUS (BLANK SLATE) -->
+          <button id="btn-reset-empty-syllabus" class="w-full p-3.5 flex items-center justify-between text-left text-rose-500 touch-press">
+            <div class="flex items-center space-x-2.5">
+              <i data-lucide="eraser" class="w-4 h-4 text-rose-500"></i>
+              <div>
+                <span class="font-bold block">Reset to Empty Syllabus</span>
+                <span class="text-[10px] text-slate-400 font-normal">Wipe all courses & start clean with 0 data</span>
+              </div>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+          </button>
+
+          <!-- RELOAD SAMPLE COURSES -->
+          <button id="btn-reset-all-data" class="w-full p-3.5 flex items-center justify-between text-left text-indigo-600 dark:text-indigo-400 touch-press">
+            <div class="flex items-center space-x-2.5">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <span class="font-bold">Load Sample Syllabi (DSA, Web, Math)</span>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+          </button>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- DOCKED MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="bottom-nav bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200/80 dark:border-slate-800/80 px-2 py-2 flex items-center justify-around shadow-xl">
+      
+      <button data-target-tab="syllabus" class="mobile-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-indigo-600 dark:text-indigo-400 touch-press">
+        <i data-lucide="book-open" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-1">Syllabus</span>
+      </button>
+
+      <button data-target-tab="timer" class="mobile-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 touch-press">
+        <div class="relative">
+          <i data-lucide="timer" class="w-5 h-5"></i>
+          <span id="nav-timer-indicator" class="w-2 h-2 rounded-full bg-rose-500 absolute -top-0.5 -right-0.5 hidden"></span>
+        </div>
+        <span class="text-[10px] font-bold mt-1">Timer</span>
+      </button>
+
+      <button data-target-tab="analytics" class="mobile-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 touch-press">
+        <i data-lucide="pie-chart" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-1">Stats</span>
+      </button>
+
+      <button data-target-tab="profile" class="mobile-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 touch-press">
+        <i data-lucide="user" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-1">Account</span>
+      </button>
+
+    </nav>
+
+  </div>
+
+  <!-- ==================== MOBILE BOTTOM SHEETS (MODALS) ==================== -->
+
+  <!-- 1. QUICK ACTIONS BOTTOM SHEET -->
+  <div id="modal-quick-actions" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden">
+    <div class="mobile-bottom-sheet bg-white dark:bg-slate-900 p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 space-y-3">
+      <div class="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mb-1"></div>
+      <h3 class="font-extrabold text-sm text-slate-800 dark:text-slate-200">Quick Actions</h3>
+
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button id="btn-sheet-add-topic" class="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 flex flex-col items-center justify-center text-center touch-press">
+          <i data-lucide="plus-circle" class="w-5 h-5 mb-1"></i>
+          <span class="text-xs font-bold">Add Topic</span>
+        </button>
+
+        <button id="btn-sheet-add-module" class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center touch-press">
+          <i data-lucide="folder-plus" class="w-5 h-5 mb-1"></i>
+          <span class="text-xs font-bold">Add Module</span>
+        </button>
+
+        <button id="btn-sheet-import" class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center touch-press">
+          <i data-lucide="file-up" class="w-5 h-5 mb-1"></i>
+          <span class="text-xs font-bold">Import Syllabus</span>
+        </button>
+
+        <button id="btn-sheet-add-subject" class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center touch-press">
+          <i data-lucide="book-plus" class="w-5 h-5 mb-1"></i>
+          <span class="text-xs font-bold">New Course</span>
+        </button>
+      </div>
+
+      <button class="modal-close-btn w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 mt-2">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- 2. STUDENT AUTH MODAL (Instant Local + Supabase Support) -->
+  <div id="modal-auth" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden">
+    <div class="mobile-bottom-sheet bg-white dark:bg-slate-900 p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 space-y-4">
+      <div class="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto"></div>
+      
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-extrabold text-base text-slate-800 dark:text-slate-100">Student Sign In & Sign Up</h3>
+          <p class="text-[11px] text-slate-400">Stores and protects your study progress</p>
+        </div>
+        <button class="modal-close-btn text-slate-400 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Mode badge -->
+      <div id="auth-mode-notice" class="bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/60 rounded-xl px-3 py-1.5 text-[11px] text-indigo-700 dark:text-indigo-300 flex items-center space-x-1.5">
+        <i data-lucide="shield-check" class="w-3.5 h-3.5 shrink-0"></i>
+        <span id="auth-mode-text">Instant Student Account enabled.</span>
+      </div>
+
+      <!-- Tabs: Login / Sign Up -->
+      <div class="flex items-center border-b border-slate-200 dark:border-slate-800 text-xs font-bold">
+        <button id="tab-btn-login" class="flex-1 py-2 text-indigo-600 border-b-2 border-indigo-600">Sign In</button>
+        <button id="tab-btn-signup" class="flex-1 py-2 text-slate-400 border-b-2 border-transparent">Register</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="form-login" class="space-y-3">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Student Email</label>
+          <input type="email" id="input-login-email" required placeholder="student@university.edu" 
+                 class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Password</label>
+          <input type="password" id="input-login-password" required placeholder="••••••••" 
+                 class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md touch-press">
+          Sign In
+        </button>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="form-signup" class="space-y-3 hidden">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Student Full Name</label>
+          <input type="text" id="input-signup-name" required placeholder="e.g. Alex Johnson" 
+                 class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Student Email</label>
+          <input type="email" id="input-signup-email" required placeholder="student@university.edu" 
+                 class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Password</label>
+          <input type="password" id="input-signup-password" minlength="4" required placeholder="Min 4 characters" 
+                 class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md touch-press">
+          Create Account & Save Progress
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. ADD / EDIT TOPIC BOTTOM SHEET -->
+  <div id="modal-topic" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden">
+    <div class="mobile-bottom-sheet bg-white dark:bg-slate-900 p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 space-y-3.5">
+      <div class="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto"></div>
+      
+      <div class="flex items-center justify-between">
+        <h3 id="modal-topic-title" class="font-extrabold text-base text-slate-800 dark:text-slate-100">Add Topic</h3>
+        <button class="modal-close-btn text-slate-400 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-topic" class="space-y-3">
+        <input type="hidden" id="input-topic-id">
+        <input type="hidden" id="input-topic-module-id">
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Topic Name *</label>
+          <input type="text" id="input-topic-name" required placeholder="e.g. Dijkstra's Algorithm" 
+                 class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Module</label>
+            <select id="input-topic-module-select" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium cursor-pointer">
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Exam Priority</label>
+            <select id="input-topic-priority" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium cursor-pointer">
+              <option value="high">🔥 High</option>
+              <option value="medium" selected>⚡ Medium</option>
+              <option value="low">🌱 Low</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Status</label>
+            <select id="input-topic-status" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium cursor-pointer">
+              <option value="not-started">⚪ Not Started</option>
+              <option value="in-progress">🟡 In Progress</option>
+              <option value="completed">🟢 Completed</option>
+              <option value="needs-revision">🔴 Needs Revision</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Est. Hours</label>
+            <input type="number" id="input-topic-est-hours" value="2" min="0.5" step="0.5" 
+                   class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Description / Sub-concepts</label>
+          <textarea id="input-topic-desc" rows="2" placeholder="Subtopics, textbook pages, key formulas..." 
+                    class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs"></textarea>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md touch-press">
+          Save Topic (+50 XP)
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. ADD / EDIT MODULE BOTTOM SHEET -->
+  <div id="modal-module" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden">
+    <div class="mobile-bottom-sheet bg-white dark:bg-slate-900 p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 space-y-3.5">
+      <div class="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto"></div>
+      
+      <div class="flex items-center justify-between">
+        <h3 id="modal-module-title" class="font-extrabold text-base text-slate-800 dark:text-slate-100">Add Module</h3>
+        <button class="modal-close-btn text-slate-400 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-module" class="space-y-3">
+        <input type="hidden" id="input-module-id">
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Module Name *</label>
+          <input type="text" id="input-module-name" required placeholder="e.g. Module 2: Trees & Heaps" 
+                 class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Weightage / Credits</label>
+            <input type="text" id="input-module-weight" placeholder="e.g. 25%" 
+                   class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Order Index</label>
+            <input type="number" id="input-module-order" value="1" min="1" 
+                   class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Description</label>
+          <textarea id="input-module-desc" rows="2" placeholder="Concepts covered in this module..." 
+                    class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs"></textarea>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md touch-press">
+          Save Module
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. ADD / EDIT COURSE BOTTOM SHEET (With Dedicated Exam Date) -->
+  <div id="modal-subject" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden">
+    <div class="mobile-bottom-sheet bg-white dark:bg-slate-900 p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 space-y-3.5">
+      <div class="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto"></div>
+      
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 id="modal-subject-title" class="font-extrabold text-base text-slate-800 dark:text-slate-100">Course & Exam Date</h3>
+          <p class="text-[11px] text-slate-400">Set exam date for countdown alerts</p>
+        </div>
+        <button class="modal-close-btn text-slate-400 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-subject" class="space-y-3">
+        <input type="hidden" id="input-subject-id">
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Course Title *</label>
+          <input type="text" id="input-subject-name" required placeholder="e.g. Operating Systems" 
+                 class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Code</label>
+            <input type="text" id="input-subject-code" placeholder="e.g. CS302" 
+                   class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-amber-500 uppercase mb-1 flex items-center space-x-1">
+              <i data-lucide="calendar" class="w-3 h-3"></i>
+              <span>Date of Exam *</span>
+            </label>
+            <input type="date" id="input-subject-exam-date" 
+                   class="w-full px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs font-bold text-slate-800 dark:text-slate-100">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Course Description / Target</label>
+          <textarea id="input-subject-desc" rows="2" placeholder="Course goals or syllabus references..." 
+                    class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs"></textarea>
+        </div>
+
+        <div class="flex items-center space-x-2 pt-1">
+          <button type="button" id="btn-delete-subject" class="py-2.5 px-3 rounded-xl border border-rose-200 text-rose-500 font-bold text-xs hidden">
+            Delete
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md touch-press">
+            Save Course
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 6. TOPIC NOTES BOTTOM SHEET -->
+  <div id="modal-notes" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden">
+    <div class="mobile-bottom-sheet bg-white dark:bg-slate-900 p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 space-y-3.5">
+      <div class="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto"></div>
+      
+      <div class="flex items-center justify-between">
+        <div>
+          <span id="notes-module-badge" class="text-[10px] font-bold text-indigo-500 uppercase">Module</span>
+          <h3 id="notes-topic-title" class="font-extrabold text-sm text-slate-800 dark:text-slate-100">Study Notes</h3>
+        </div>
+        <button class="modal-close-btn text-slate-400 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <input type="hidden" id="notes-topic-id">
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Key Formulas & Summary</label>
+          <textarea id="notes-content" rows="4" placeholder="Write key formulas or important exam notes..." 
+                    class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Resource URLs / Links</label>
+          <textarea id="notes-resources" rows="2" placeholder="https://youtube.com/... or Textbook chapter" 
+                    class="w-full font-mono text-[11px] p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs"></textarea>
+        </div>
+
+        <div class="flex items-center space-x-2 pt-1">
+          <button id="btn-start-focus-from-notes" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1 touch-press">
+            <i data-lucide="timer" class="w-4 h-4"></i>
+            <span>Focus Timer</span>
+          </button>
+          <button id="btn-save-notes" class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs touch-press">
+            Save Notes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. SMART SYLLABUS IMPORTER BOTTOM SHEET -->
+  <div id="modal-quick-import" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden">
+    <div class="mobile-bottom-sheet bg-white dark:bg-slate-900 p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 space-y-3">
+      <div class="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto"></div>
+      
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-extrabold text-sm text-slate-800 dark:text-slate-100">Smart Syllabus Importer</h3>
+          <p class="text-[10px] text-slate-400">Paste your syllabus outline to auto-generate units</p>
+        </div>
+        <button class="modal-close-btn text-slate-400 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5">
+        <div class="flex justify-between items-center text-[10px]">
+          <span class="text-slate-400 uppercase font-bold">Paste Syllabus Text</span>
+          <button id="btn-load-sample-syllabus" class="text-indigo-500 font-bold">Insert Sample</button>
+        </div>
+        <textarea id="quick-import-textarea" rows="6" placeholder="Module 1: Foundations
+- Concept 1
+- Concept 2
+Module 2: Advanced
+- Concept 3" 
+                  class="font-mono text-xs w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800"></textarea>
+
+        <label class="flex items-center space-x-2 text-[11px] text-slate-500">
+          <input type="checkbox" id="import-append-mode" class="rounded text-indigo-600">
+          <span>Append to current course</span>
+        </label>
+
+        <button id="btn-execute-import" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md flex items-center justify-center space-x-1 touch-press">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Generate Modules & Topics</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 transform -translate-y-4">
+    <div class="px-4 py-2 rounded-full bg-slate-900/90 text-white dark:bg-white dark:text-slate-900 shadow-xl text-xs font-bold flex items-center space-x-1.5 backdrop-blur-md">
+      <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600"></i>
+      <span id="toast-message">Saved!</span>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
